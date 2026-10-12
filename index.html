@@ -204,6 +204,7 @@ textarea.field{min-height:70px;font-family:ui-monospace,Menlo,monospace;font-siz
 .selw select{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:.3rem .4rem;font-size:16px;color:var(--ink)}
 .simrow .grow{flex:1 1 auto}
 .simmsg{margin:0;font-weight:600;color:var(--ok)} .simmsg.bad{color:var(--fault)}
+.tl .win2>div{border-color:#6f9fd8;color:#4a7fbf}
 .tl .win>div.early{border-color:var(--fault);color:var(--fault)}
 .simres .warn{color:var(--fault);margin-top:6px;font-weight:600}
 .simres .note{margin-top:6px;font-size:.8rem}
@@ -211,6 +212,7 @@ textarea.field{min-height:70px;font-family:ui-monospace,Menlo,monospace;font-siz
 .arms{stroke:#ff8a00;stroke-width:.1;stroke-linecap:round;fill:none}
 .land{fill:#ffe066;fill-opacity:.35;stroke:#ffe066;stroke-width:.05;pointer-events:none}
 @media (max-width:700px){.app.present .simrow:nth-of-type(2){display:none}}
+.reachr{fill:#9ec5ff;fill-opacity:.1;stroke:#9ec5ff;stroke-width:.04;stroke-dasharray:.12 .1;pointer-events:none}
 .reach{fill:#3ddc84;fill-opacity:.12;stroke:#3ddc84;stroke-width:.05;pointer-events:none}
 .tgt{fill:none;stroke:#fff;stroke-width:.05;stroke-dasharray:.1 .08;stroke-opacity:.8;pointer-events:none}
 .tgtl{stroke:#fff;stroke-opacity:.35;stroke-width:.04;stroke-dasharray:.1 .1;pointer-events:none}
@@ -426,6 +428,7 @@ details.grp.more>summary{font-family:var(--display);font-size:.8rem;text-transfo
           </div>
           <div class="rots" id="rots"></div>
           <label class="tog"><input type="checkbox" id="optLib"> Líbero en lugar de la central zaguera</label>
+          <label class="tog"><input type="checkbox" id="optCross"> Receptora y opuesta se cruzan para atacar (receptora a 4, opuesta a 2)</label>
           <div class="row">
             <button class="btn" id="bRotate">Rotar ↻</button>
             <button class="btn" id="bReset">Restaurar salidas</button>
@@ -666,7 +669,11 @@ function genVariants(sys,k,lib){
   const recP=lib?lu.find(p=>p.id==='L'):(lu.find(p=>p.id.startsWith('OH')&&back(p.zone))||lu.find(p=>p.id.startsWith('OH')));
   const P1=cp(P0);P1[setter]=[6.0,NET+1.4];
   const slotOf=id=>id.startsWith('OH')?0:id.startsWith('MB')?1:2;
-  const FR={};lu.filter(p=>p.zone>=2&&p.zone<=4&&p.id!==setter).forEach(p=>FR[slotOf(p.id)]=p.id);
+  const front=lu.filter(p=>p.zone>=2&&p.zone<=4&&p.id!==setter),FR={},ZX={4:0,3:1,2:2};
+  front.filter(p=>p.id.startsWith('MB')).forEach(p=>FR[1]=p.id);
+  const oth=front.filter(p=>!p.id.startsWith('MB'));
+  if(oth.length===2&&!CROSS()){oth.sort((a,b)=>ZX[a.zone]-ZX[b.zone]);FR[0]=oth[0].id;FR[2]=oth[1].id}
+  else oth.forEach(p=>FR[slotOf(p.id)]=p.id);
   const backs=lu.filter(p=>back(p.zone)&&p.id!==setter).map(p=>p.id);
   const pipeId=(lu.find(p=>back(p.zone)&&p.id.startsWith('OH'))||{}).id;
   const appr={0:[0.6,3.6],1:[4.4,3.0],2:[8.6,3.6]}, hit={0:[1.2,0.9],1:[5.0,0.8],2:[8.0,1.0]};
@@ -706,6 +713,7 @@ function genVariants(sys,k,lib){
     v.push({name:'Cambio de lado (prueba)',steps:make('p4',P0,PS)})}
   return v;
 }
+const CROSS=()=>typeof opt==='object'&&!!opt.cross;
 const DEF_OPP=[[1.6,7.9],[4.6,7.3],[7.4,8.0],[2.6,3.6],[6.6,4.4]];
 function freshState(sys='5-1',k=0,lib=true){const v=genVariants(sys,k,lib);return {opp:cp(DEF_OPP),system:sys,rot:k,libero:lib,srv:[4.5,-1.2],variants:v,vi:0,steps:v[0].steps,cur:0,dirty:false,name:''}}
 function serial(){return {v:2,system:S.system,rot:S.rot,libero:S.libero,srv:S.srv,opp:S.opp,variants:S.variants,vi:S.vi,name:S.name||''}}
@@ -724,7 +732,6 @@ function normalize(d){
 }
 function defaultName(){const s=setterZoneLabel(S.system,S.rot);return `K1 ${S.system} · ${s.who} en zona ${s.zone}`}
 
-let S=normalize(LS.get('pizarraK1.borrador'))||freshState();
 const DEF_ST={float:{a:1.2,f:1.2},jfloat:{a:2.0,f:1.0},power:{a:2.5,f:0.6}};
 const SV_NAME={float:'Flotante desde el suelo',jfloat:'Flotante en salto',power:'Saque en potencia'};
 let opt=Object.assign({target:'rec',cat:'senior',accel:true,acc:4.5,early:0,compare:false,showOpp:false,arms:false,examKind:'pos',rule:'prueba',serve:'float',st:cp(DEF_ST),react:.25,spd:4.2,tool:'move',color:'#ffffff',view:'full',orient:'auto',rel:true,trails:true,zones:false,sound:true,speed:1,tol:'centro',lab:'rol',names:true,team:''},LS.get('pizarraK1.opt')||{});
@@ -733,6 +740,7 @@ if(!['prueba','clasica'].includes(opt.rule))opt.rule='prueba';if(!SV_NAME[opt.se
 opt.st=Object.assign(cp(DEF_ST),opt.st||{});for(const k in DEF_ST){const v=opt.st[k];if(!v||!(v.a>=0)||!(v.f>0))opt.st[k]=cp(DEF_ST[k])}
 if(!(opt.react>=0))opt.react=.25;if(!(opt.acc>0))opt.acc=4.5;if(![0,.2,.4,.6].includes(opt.early))opt.early=0;if(!['rec','1','6','5','4c','3c','2c','rand'].includes(opt.target))opt.target='rec';if(!['pos','tiempo','mixto'].includes(opt.examKind))opt.examKind='pos';if(!(opt.spd>0))opt.spd=4.2;
 const MOMENT=()=>opt.rule==='prueba'?'en el silbato':'en el golpe de saque';
+let S=normalize(LS.get('pizarraK1.borrador'))||freshState();
 let rosters=LS.get('pizarraK1.plantillas')||[];
 const team=()=>rosters.find(t=>t.id===opt.team)||null;
 
@@ -833,7 +841,7 @@ function renderCourtTo(el,F){
   const at0=!F&&S.cur===0;const faults=checkFaults();const bad=new Set();
   if(at0&&!hide)faults.forEach(x=>x.ids.forEach(i=>bad.add(i)));
   const SM=F&&F.sim;
-  if(SM&&SM.fault)SM.movers.forEach(m=>bad.add(m.id));
+  if(SM&&SM.fault)SM.movers.forEach(m=>{if(!m.read)bad.add(m.id)});
   let h=base();
   if(at0&&opt.zones&&!hide)h+=zonesSvg(P);
   if(at0&&!hide){const by={};lu.forEach(p=>by[p.zone]=p.id);const bk=new Set(faults.map(x=>x.key));
@@ -854,8 +862,8 @@ function renderCourtTo(el,F){
   }
   if(!F){step.draw.forEach(d=>h+=strokeSvg(d));if(stroke&&stroke.pts.length>1)h+=strokeSvg(stroke)}
   if(SM){
-    SM.movers.forEach(m=>{h+=`<line class="tgtl" x1="${f(m.a[0])}" y1="${f(m.a[1])}" x2="${f(m.b[0])}" y2="${f(m.b[1])}"/><circle class="tgt" cx="${f(m.b[0])}" cy="${f(m.b[1])}" r="${m.rec?'.25':'.42'}"/>`});
-    if(SM.r>0)SM.circles.forEach(c=>{h+=`<circle class="reach" cx="${f(c[0])}" cy="${f(c[1])}" r="${f(SM.r)}"/>`});
+    SM.movers.forEach(m=>{if(m.step)return;h+=`<line class="tgtl" x1="${f(m.a[0])}" y1="${f(m.a[1])}" x2="${f(m.b[0])}" y2="${f(m.b[1])}"/><circle class="tgt" cx="${f(m.b[0])}" cy="${f(m.b[1])}" r="${m.rec?'.25':'.42'}"/>`});
+    SM.circles.forEach(c=>{if(c.r>.02)h+=`<circle class="${c.cls}" cx="${f(c.c[0])}" cy="${f(c.c[1])}" r="${f(c.r)}"/>`});
     if(SM.pl&&SM.pl.tg&&SM.pl.tg.recId)h+=`<circle class="land" cx="${f(SM.pl.tg.pt[0])}" cy="${f(SM.pl.tg.pt[1])}" r=".35"/>`;
   }
   h+=oppSvg(F);
@@ -863,7 +871,7 @@ function renderCourtTo(el,F){
   if(!exam)h+=`<g class="chip srv" data-id="srv" transform="translate(${f(srvP[0])} ${f(srvP[1])})"><circle class="hit" r=".75"/><circle class="body" r=".4"/><g transform="rotate(${TR})"><text>S</text><text class="srvl" y="-.6">saque rival</text></g></g>`;
   const ids=lu.map(p=>p.id);if(drag&&ids.includes(drag.id)){ids.splice(ids.indexOf(drag.id),1);ids.push(drag.id)}
   ids.forEach(id=>{if(!P[id])return;let c=chip(id,P[id],at0?zOf[id]:null,bad.has(id),exam&&exam.picked===id);
-    if(SM&&SM.done&&!SM.fault){const m=SM.movers.find(x=>x.id===id);if(m)c=c.replace('class="chip ',`class="chip ${m.ok?'made':'late'} `)}
+    if(SM&&SM.done&&!SM.fault){const m=SM.movers.find(x=>x.id===id&&!x.step);if(m)c=c.replace('class="chip ',`class="chip ${m.ok?'made':'late'} `)}
     h+=c});
   if(!exam||(F&&F.sim))h+=F?ballSvg(F.ball,F.bs,false):ballSvg(ballOf(S.cur),1,S.cur>0);
   el.setAttribute('viewBox',(H?VIEWH:VIEW)[opt.view]);
@@ -935,7 +943,7 @@ function renderRoster(force){
 function renderControls(){
   document.querySelectorAll('#sysSeg .btn').forEach(b=>b.classList.toggle('on',b.dataset.sys===S.system));
   $('#rots').innerHTML=[0,1,2,3,4,5].map(k=>{const s=setterZoneLabel(S.system,k);return `<button class="btn${k===S.rot?' on':''}" data-k="${k}"><strong>Rot. ${s.zone}</strong><small>${s.who} en zona ${s.zone}</small></button>`}).join('');
-  $('#optLib').checked=S.libero;
+  $('#optLib').checked=S.libero;$('#optCross').checked=!!opt.cross;
   document.querySelectorAll('#toolSeg .btn').forEach(b=>b.classList.toggle('on',b.dataset.tool===opt.tool));
   document.querySelectorAll('#viewSeg .btn').forEach(b=>b.classList.toggle('on',b.dataset.view===opt.view));
   document.querySelectorAll('#orientSeg .btn').forEach(b=>b.classList.toggle('on',b.dataset.o===(opt.orient||'auto')));
@@ -982,25 +990,40 @@ function simWindow(rule,sv){return rule==='prueba'?sv.a+sv.f:sv.f}
 function availTime(rule,sv){return simWindow(rule,sv)+opt.early-(opt.early>0?0:opt.react)}
 function reachOf(rule,sv){return reachIn(availTime(rule,sv))}
 function simPlan(rule,tg){
-  const sv=opt.st[opt.serve],A=S.steps[0].P,B=S.steps[1].P;
-  const tMove=rule==='prueba'?0:sv.a,start=tMove-opt.early,delay=opt.early>0?0:opt.react,total=sv.a+sv.f;
+  const sv=opt.st[opt.serve],A=S.steps[0].P,B=S.steps[1].P,total=sv.a+sv.f,land=tg.pt;
+  // Movimientos preparados (penetración, formación): según la regla, sin necesidad de leer el saque
+  const tMove=rule==='prueba'?0:sv.a,start=tMove-opt.early,delay=opt.early>0?0:opt.react;
+  // Receptoras: solo leen la trayectoria después del golpe, más su reacción, con cualquier regla
+  const rStart=sv.a,rDelay=opt.react;
+  const lu=lineup(S.system,S.rot,S.libero),setter=setterWhoSets(S.system,S.rot,S.libero);
+  const recSet=lu.filter(p=>p.id!==setter&&A[p.id][1]>=NET+3.5).map(p=>p.id);
+  let recv=tg.recId;
+  if(!recv){let bd=1.6;recSet.forEach(id=>{const q=A[id],d=Math.hypot(q[0]-land[0],q[1]-land[1]);if(d<bd){bd=d;recv=id}})}
   const movers=[];
-  lineup(S.system,S.rot,S.libero).forEach(p=>{const a=A[p.id];let b=B[p.id];const r=tg.recId===p.id;if(r)b=tg.pt;
-    const d=Math.hypot(b[0]-a[0],b[1]-a[1]),need=r?Math.max(0,d-.5):d;
-    if(need>.3||r)movers.push({id:p.id,a,b,d,need,rec:r,ok:false,u:d>1e-6?[(b[0]-a[0])/d,(b[1]-a[1])/d]:[0,0]})});
-  const R=reachIn(total-start-delay);movers.forEach(m=>m.ok=R>=m.need-1e-6);
-  return {rule,sv,tg,tMove,start,delay,total,movers,early:opt.early>0,R};
+  lu.forEach(p=>{const a=A[p.id];
+    if(p.id===recv){const d=Math.hypot(land[0]-a[0],land[1]-a[1]),need=Math.max(0,d-.8);
+      movers.push({id:p.id,a,b:land,d,need,rec:true,read:true,start:rStart,delay:rDelay,u:d>1e-6?[(land[0]-a[0])/d,(land[1]-a[1])/d]:[0,0]});return}
+    const b=B[p.id],d=Math.hypot(b[0]-a[0],b[1]-a[1]);
+    if(d>.3){movers.push({id:p.id,a,b,d,need:d,start,delay,u:[(b[0]-a[0])/d,(b[1]-a[1])/d]});return}
+    if(recSet.includes(p.id)){const dl=Math.hypot(land[0]-a[0],land[1]-a[1]),st=Math.min(.7,dl-1.0);
+      if(st>.15){const u=[(land[0]-a[0])/dl,(land[1]-a[1])/dl];movers.push({id:p.id,a,b:[a[0]+u[0]*st,a[1]+u[1]*st],d:st,need:st,step:true,read:true,start:rStart,delay:rDelay,u})}}
+  });
+  movers.forEach(m=>{m.R=reachIn(total-m.start-m.delay);m.ok=m.step||m.R>=m.need-1e-6});
+  return {rule,sv,tg,tMove,start,delay,rStart,rDelay,total,movers,recSet,early:opt.early>0,R:reachIn(total-start-delay),Rr:reachIn(total-rStart-rDelay)};
 }
 function simFrame(pl,t,cx){
   const tc=Math.min(t,pl.total),A=S.steps[0].P;
   const P={};for(const id in A)P[id]=A[id].slice();
-  const tau=tc-pl.start-pl.delay;
-  pl.movers.forEach(m=>{const s=distAt(tau,m.need);P[m.id]=[m.a[0]+m.u[0]*s,m.a[1]+m.u[1]*s]});
+  pl.movers.forEach(m=>{const s=distAt(tc-m.start-m.delay,m.need);P[m.id]=[m.a[0]+m.u[0]*s,m.a[1]+m.u[1]*s]});
   const sv=pl.sv,ga=Math.max(0,Math.min(1,sv.a>0?tc/sv.a:1)),srv=[cx.s0[0],cx.s0[1]+(cx.s1[1]-cx.s0[1])*ease(ga)];
   let ball,bs;
   if(tc<sv.a){ball=[srv[0]+.3,srv[1]+.15];bs=tc<0?1:1+.9*Math.sin(Math.PI*Math.min(1,tc/sv.a))}
   else{const u=Math.min(1,(tc-sv.a)/sv.f);ball=quad(cx.hit,cx.cc,pl.tg.pt,u);bs=1+(cx.serve==='power'?.25:.45)*Math.sin(Math.PI*u)}
-  return {P,ball,bs,srv,opp:S.opp,sim:{movers:pl.movers,circles:cx.circleIds.map(id=>A[id]),r:reachIn(tau),done:t>=pl.total,fault:pl.early&&tc>=pl.start&&pl.movers.length>0,pl}};
+  const planned=pl.movers.filter(m=>!m.read),circles=[];
+  planned.forEach(m=>circles.push({c:m.a,r:reachIn(tc-m.start-m.delay),cls:'reach'}));
+  const rr=reachIn(tc-pl.rStart-pl.rDelay);
+  pl.recSet.forEach(id=>{if(!planned.some(m=>m.id===id))circles.push({c:A[id],r:rr,cls:'reachr'})});
+  return {P,ball,bs,srv,opp:S.opp,sim:{movers:pl.movers,circles,done:t>=pl.total,fault:pl.early&&tc>=pl.start&&planned.length>0,pl}};
 }
 function simMsg(t,bad){const m=$('#simmsg');m.textContent=t||'';m.hidden=!t;m.classList.toggle('bad',!!bad)}
 function renderSim(){
@@ -1014,15 +1037,16 @@ function renderSim(){
   document.querySelectorAll('#examKind .btn').forEach(b=>b.classList.toggle('on',b.dataset.ek===opt.examKind));
   const W=.6,tot=W+sv.a+sv.f,pc=x=>Math.max(0,x)/tot*100;
   const allowed=opt.rule==='prueba'?W:W+sv.a,start=allowed-opt.early,win=availTime(opt.rule,sv)+(opt.early>0?0:opt.react);
-  $('#tl').innerHTML=`<div class="track"><div class="seg-w" style="width:${pc(W)}%">Silbato</div><div class="seg-a" style="width:${pc(sv.a)}%">Acción ${fmt(sv.a)} s</div><div class="seg-f" style="width:${pc(sv.f)}%">Vuelo ${fmt(sv.f)} s</div></div><div class="cur" id="tlCur"></div><div class="win">${opt.early>0?`<div class="early" style="left:${pc(start)}%;width:${pc(opt.early)}%">falta</div>`:''}<div style="left:${pc(allowed)}%;width:${pc(tot-allowed)}%">Movimiento libre ${fmt(tot-allowed)} s · alcance ${fmt(reachOf(opt.rule,sv))} m</div></div>`;
+  $('#tl').innerHTML=`<div class="track"><div class="seg-w" style="width:${pc(W)}%">Silbato</div><div class="seg-a" style="width:${pc(sv.a)}%">Acción ${fmt(sv.a)} s</div><div class="seg-f" style="width:${pc(sv.f)}%">Vuelo ${fmt(sv.f)} s</div></div><div class="cur" id="tlCur"></div><div class="win">${opt.early>0?`<div class="early" style="left:${pc(start)}%;width:${pc(opt.early)}%">falta</div>`:''}<div style="left:${pc(allowed)}%;width:${pc(tot-allowed)}%">Movimientos preparados ${fmt(tot-allowed)} s · alcance ${fmt(reachOf(opt.rule,sv))} m</div></div><div class="win win2"><div style="left:${pc(W+sv.a+opt.react)}%;width:${pc(Math.max(0,sv.f-opt.react))}%">Receptora ${fmt(Math.max(0,sv.f-opt.react))} s</div></div>`;
   const box=$('#simres');
   if(S.steps.length<2){box.innerHTML='<p>Añade un paso 2 para simular el saque.</p>';return}
   const tg=serveTarget(),pc_=simPlan('clasica',tg),pp=simPlan('prueba',tg);
   const tgName=opt.target==='rand'&&randPick?`${ZT_NAME[randPick.key]} (al azar)`:ZT_NAME[tg.key];
-  if(!pp.movers.length){box.innerHTML=`<h3>${SV_NAME[opt.serve]} ${tgName}</h3><p>Mueve fichas en el paso 2 de la salida o elige una zona de destino para ver si a cada jugadora le da tiempo a llegar.</p>`;return}
+  const tab=pp.movers.filter(m=>!m.step);
+  if(!tab.length){box.innerHTML=`<h3>${SV_NAME[opt.serve]} ${tgName}</h3><p>Mueve fichas en el paso 2 de la salida o elige una zona de destino para ver si a cada jugadora le da tiempo a llegar.</p>`;return}
   const cell=m=>m.ok?`<span class="y">Llega</span>`:`<span class="n">Faltan ${fmt(m.need-(m.rule==='clasica'?pc_.R:pp.R))} m</span>`;
-  const rows=pp.movers.map(m=>{const mc=pc_.movers.find(x=>x.id===m.id);return {m,mc}}).sort((x,y)=>y.m.need-x.m.need);
-  box.innerHTML=`<h3>${SV_NAME[opt.serve]} ${tgName} · ¿llegan antes de recibir?</h3><table><thead><tr><th>Jugadora</th><th>Recorrido</th><th>Clásica (${fmt(pc_.R)} m)</th><th>Prueba FIVB (${fmt(pp.R)} m)</th></tr></thead><tbody>${rows.map(({m,mc})=>`<tr><td>${esc(chipName(m.id))}${m.rec?' · recibe':''}</td><td>${fmt(m.need)} m</td><td>${mc.ok?'<span class="y">Llega</span>':`<span class="n">Faltan ${fmt(mc.need-pc_.R)} m</span>`}</td><td>${m.ok?'<span class="y">Llega</span>':`<span class="n">Faltan ${fmt(m.need-pp.R)} m</span>`}</td></tr>`).join('')}</tbody></table>${opt.early>0?`<p class="warn">Con salida anticipada de ${fmt(opt.early)} s llegan antes, pero es falta de posición con las dos reglas.</p>`:''}<p class="note">${opt.accel?`Movimiento con aceleración (${fmt(opt.acc)} m/s²) y frenada`:'Movimiento a velocidad constante'}, reacción ${fmt(opt.react)} s, velocidad ${fmt(opt.spd)} m/s.</p>`;
+  const rows=tab.map(m=>{const mc=pc_.movers.find(x=>x.id===m.id);return {m,mc}}).sort((x,y)=>(y.m.rec?1:0)-(x.m.rec?1:0)||y.m.need-x.m.need);
+  box.innerHTML=`<h3>${SV_NAME[opt.serve]} ${tgName} · ¿llegan antes de recibir?</h3><table><thead><tr><th>Jugadora</th><th>Recorrido</th><th>Clásica</th><th>Prueba FIVB</th></tr></thead><tbody>${rows.map(({m,mc})=>`<tr><td>${esc(chipName(m.id))}${m.rec?' · recibe':''}</td><td>${fmt(m.need)} m</td><td>${mc.ok?'<span class="y">Llega</span>':`<span class="n">Faltan ${fmt(mc.need-mc.R)} m</span>`}</td><td>${m.ok?'<span class="y">Llega</span>':`<span class="n">Faltan ${fmt(m.need-m.R)} m</span>`}</td></tr>`).join('')}</tbody></table>${opt.early>0?`<p class="warn">Con salida anticipada de ${fmt(opt.early)} s llegan antes, pero es falta de posición con las dos reglas.</p>`:''}<p class="note">La receptora solo arranca tras el golpe y su reacción (${fmt(opt.react)} s), con las dos reglas: tiene ${fmt(Math.max(0,pp.sv.f-opt.react))} s para colocarse. Las demás receptoras dan un paso hacia el bote. Los movimientos preparados, como la penetración, dependen de la regla.</p><p class="note">${opt.accel?`Movimiento con aceleración (${fmt(opt.acc)} m/s²) y frenada`:'Movimiento a velocidad constante'}, reacción ${fmt(opt.react)} s, velocidad ${fmt(opt.spd)} m/s.</p>`;
 }
 function simRun(onDone){
   if(exam&&exam.kind!=='tiempo')return;if(S.steps.length<2)return;
@@ -1186,8 +1210,8 @@ function examNext(){
     setSteps(cp(pick.steps));
     opt.serve=Object.keys(DEF_ST)[Math.floor(Math.random()*3)];opt.rule=Math.random()<.5?'prueba':'clasica';opt.target='rec';opt.early=0;opt.compare=false;
     const pl=simPlan(opt.rule,serveTarget()),setter=setterWhoSets(S.system,k,S.libero);
-    const m=pl.movers.find(x=>x.id===setter)||pl.movers[Math.floor(Math.random()*pl.movers.length)];
-    if(m){exam.q={id:m.id,ok:m.ok,need:m.need,R:pl.R};exam.fault=false;renderAll();return}
+    const cand=pl.movers.filter(x=>!x.step);const m=cand.find(x=>x.id===setter)||cand[Math.floor(Math.random()*cand.length)];
+    if(m){exam.q={id:m.id,ok:m.ok,need:m.need,R:m.R};exam.fault=false;renderAll();return}
     exam.kind='pos';
   }
   const setP=P=>setSteps([{label:'Examen',P,ball:null,draw:[]}]);
@@ -1310,6 +1334,8 @@ $('#rots').addEventListener('click',e=>{const b=e.target.closest('[data-k]');if(
 $('#bRotate').onclick=()=>guarded('Rotar rehace las salidas de la jugada. Puedes deshacerlo con ↶.',()=>{S.rot=(S.rot+1)%6;S.name='';regen()});
 $('#optLib').onchange=e=>{const v=e.target.checked;e.target.checked=S.libero;
   guarded('Cambiar la líbero rehace las salidas de la jugada. Puedes deshacerlo con ↶.',()=>{S.libero=v;regen()})};
+$('#optCross').onchange=e=>{const v=e.target.checked;e.target.checked=!!opt.cross;
+  guarded('Cambiar los cruces rehace las salidas de la jugada. Puedes deshacerlo con ↶.',()=>{opt.cross=v;regen();autosave()})};
 $('#bReset').onclick=()=>guarded('Se restaurarán las salidas por defecto de esta rotación. Puedes deshacerlo con ↶.',regen);
 
 $('#stepLabel').addEventListener('focus',()=>pushUndo());
