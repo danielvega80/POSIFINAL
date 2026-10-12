@@ -212,6 +212,10 @@ textarea.field{min-height:70px;font-family:ui-monospace,Menlo,monospace;font-siz
 .arms{stroke:#ff8a00;stroke-width:.1;stroke-linecap:round;fill:none}
 .land{fill:#ffe066;fill-opacity:.35;stroke:#ffe066;stroke-width:.05;pointer-events:none}
 @media (max-width:700px){.app.present .simrow:nth-of-type(2){display:none}}
+.readpt{fill:none;stroke:#ffe066;stroke-width:.06;stroke-dasharray:.14 .1;pointer-events:none}
+.readpt.fooled{stroke:#ff8a00}
+.readl{fill:#ffe066;font-family:var(--display);font-weight:700;font-size:.3px;letter-spacing:.04px;paint-order:stroke;stroke:rgba(0,0,0,.5);stroke-width:.06px;pointer-events:none}
+.readl.fooled{fill:#ff8a00}
 .reachr{fill:#9ec5ff;fill-opacity:.1;stroke:#9ec5ff;stroke-width:.04;stroke-dasharray:.12 .1;pointer-events:none}
 .reach{fill:#3ddc84;fill-opacity:.12;stroke:#3ddc84;stroke-width:.05;pointer-events:none}
 .tgt{fill:none;stroke:#fff;stroke-width:.05;stroke-dasharray:.1 .08;stroke-opacity:.8;pointer-events:none}
@@ -381,6 +385,7 @@ details.grp.more>summary{font-family:var(--display);font-size:.8rem;text-transfo
               <option value="rec">→ Receptora (paso 2)</option>
               <option value="1">→ Zona 1</option><option value="6">→ Zona 6</option><option value="5">→ Zona 5</option>
               <option value="4c">→ Corto zona 4</option><option value="3c">→ Corto zona 3</option><option value="2c">→ Corto zona 2</option>
+              <option value="tend">→ Según tendencia</option>
               <option value="rand">→ Al azar</option>
             </select>
           </label>
@@ -505,6 +510,22 @@ details.grp.more>summary{font-family:var(--display);font-size:.8rem;text-transfo
           </select>
           <p class="hint">Si se adelantan llegan antes, pero la pizarra marca falta de posición.</p>
           <div class="row"><button class="btn" id="bTimesReset">Restaurar valores</button></div>
+        </div>
+        <div class="grp">
+          <h3>Lectura del sacador</h3>
+          <label class="lbl" for="tendSel">Tendencia del sacador</label>
+          <select class="field" id="tendSel">
+            <option value="none">Sin tendencia clara</option><option value="1">Saca a zona 1</option><option value="6">Saca a zona 6</option><option value="5">Saca a zona 5</option>
+            <option value="corto">Saca corto</option><option value="diag">Saca en diagonal</option><option value="par">Saca en paralela</option>
+          </select>
+          <div class="row"><button class="btn" id="bShift">Reajustar la recepción hacia la tendencia</button></div>
+          <span class="lbl">Lectura de mis receptoras</span>
+          <div class="seg" id="readSeg">
+            <button class="btn" data-rd="nula">Nula</button><button class="btn" data-rd="media">Media</button><button class="btn" data-rd="buena">Buena</button>
+          </div>
+          <label class="tog"><input type="checkbox" id="optFake"> Saque disfrazado (engaña la lectura)</label>
+          <label class="tog"><input type="checkbox" id="optVary"> Variación natural en cada saque</label>
+          <p class="hint">La diagonal y la paralela dependen de dónde esté el sacador: arrástralo por la línea de fondo. Con la regla de prueba, leer bien permite dar el primer paso antes del golpe; con la clásica ese paso sería falta.</p>
         </div>
         <div class="grp">
           <h3>Equipo que saca</h3>
@@ -734,11 +755,11 @@ function defaultName(){const s=setterZoneLabel(S.system,S.rot);return `K1 ${S.sy
 
 const DEF_ST={float:{a:1.2,f:1.2},jfloat:{a:2.0,f:1.0},power:{a:2.5,f:0.6}};
 const SV_NAME={float:'Flotante desde el suelo',jfloat:'Flotante en salto',power:'Saque en potencia'};
-let opt=Object.assign({target:'rec',cat:'senior',accel:true,acc:4.5,early:0,compare:false,showOpp:false,arms:false,examKind:'pos',rule:'prueba',serve:'float',st:cp(DEF_ST),react:.25,spd:4.2,tool:'move',color:'#ffffff',view:'full',orient:'auto',rel:true,trails:true,zones:false,sound:true,speed:1,tol:'centro',lab:'rol',names:true,team:''},LS.get('pizarraK1.opt')||{});
+let opt=Object.assign({tend:'none',read:'media',fake:false,vary:true,target:'rec',cat:'senior',accel:true,acc:4.5,early:0,compare:false,showOpp:false,arms:false,examKind:'pos',rule:'prueba',serve:'float',st:cp(DEF_ST),react:.25,spd:4.2,tool:'move',color:'#ffffff',view:'full',orient:'auto',rel:true,trails:true,zones:false,sound:true,speed:1,tol:'centro',lab:'rol',names:true,team:''},LS.get('pizarraK1.opt')||{});
 if(!(opt.tol in TOL))opt.tol='centro';
 if(!['prueba','clasica'].includes(opt.rule))opt.rule='prueba';if(!SV_NAME[opt.serve])opt.serve='float';
 opt.st=Object.assign(cp(DEF_ST),opt.st||{});for(const k in DEF_ST){const v=opt.st[k];if(!v||!(v.a>=0)||!(v.f>0))opt.st[k]=cp(DEF_ST[k])}
-if(!(opt.react>=0))opt.react=.25;if(!(opt.acc>0))opt.acc=4.5;if(![0,.2,.4,.6].includes(opt.early))opt.early=0;if(!['rec','1','6','5','4c','3c','2c','rand'].includes(opt.target))opt.target='rec';if(!['pos','tiempo','mixto'].includes(opt.examKind))opt.examKind='pos';if(!(opt.spd>0))opt.spd=4.2;
+if(!(opt.react>=0))opt.react=.25;if(!(opt.acc>0))opt.acc=4.5;if(!['none','1','6','5','corto','diag','par'].includes(opt.tend))opt.tend='none';if(!['nula','media','buena'].includes(opt.read))opt.read='media';if(![0,.2,.4,.6].includes(opt.early))opt.early=0;if(!['rec','1','6','5','4c','3c','2c','rand','tend'].includes(opt.target))opt.target='rec';if(!['pos','tiempo','mixto'].includes(opt.examKind))opt.examKind='pos';if(!(opt.spd>0))opt.spd=4.2;
 const MOMENT=()=>opt.rule==='prueba'?'en el silbato':'en el golpe de saque';
 let S=normalize(LS.get('pizarraK1.borrador'))||freshState();
 let rosters=LS.get('pizarraK1.plantillas')||[];
@@ -864,6 +885,7 @@ function renderCourtTo(el,F){
   if(SM){
     SM.movers.forEach(m=>{if(m.step)return;h+=`<line class="tgtl" x1="${f(m.a[0])}" y1="${f(m.a[1])}" x2="${f(m.b[0])}" y2="${f(m.b[1])}"/><circle class="tgt" cx="${f(m.b[0])}" cy="${f(m.b[1])}" r="${m.rec?'.25':'.42'}"/>`});
     SM.circles.forEach(c=>{if(c.r>.02)h+=`<circle class="${c.cls}" cx="${f(c.c[0])}" cy="${f(c.c[1])}" r="${f(c.r)}"/>`});
+    if(SM.readPt){const rp=SM.readPt;h+=`<circle class="readpt${SM.fooledShown?' fooled':''}" cx="${f(rp[0])}" cy="${f(rp[1])}" r=".55"/><g transform="translate(${f(rp[0])} ${f(rp[1]+.95)}) rotate(${TR})"><text class="readl${SM.fooledShown?' fooled':''}" text-anchor="middle">${SM.fooledShown?'ENGAÑO':'LECTURA'}</text></g>`}
     if(SM.pl&&SM.pl.tg&&SM.pl.tg.recId)h+=`<circle class="land" cx="${f(SM.pl.tg.pt[0])}" cy="${f(SM.pl.tg.pt[1])}" r=".35"/>`;
   }
   h+=oppSvg(F);
@@ -962,19 +984,42 @@ function renderAll(){drawCourt();renderStatus();renderSteps();renderControls();r
 /* ---------- Simulador de saque (regla clásica vs prueba FIVB 2026) ---------- */
 let simHold=null,simHold2=null,drill=null,rec=null;
 const fmt=n=>(Math.round(n*10)/10).toLocaleString('es-ES',{minimumFractionDigits:1,maximumFractionDigits:1});
-const ZT={'1':[7.5,16.8],'6':[4.5,16.8],'5':[1.5,16.8],'4c':[1.5,11.4],'3c':[4.5,11.4],'2c':[7.5,11.4]};
-const ZT_NAME={rec:'a la receptora del paso 2','1':'a zona 1','6':'a zona 6','5':'a zona 5','4c':'corto a zona 4','3c':'corto a zona 3','2c':'corto a zona 2',rand:'a una zona al azar'};
+const ZT={'1':[7.5,16.8],'6':[4.5,16.8],'5':[1.5,16.8],'4c':[1.5,12.8],'3c':[4.5,12.8],'2c':[7.5,12.8]};
+const ZT_NAME={rec:'a la receptora del paso 2','1':'a zona 1','6':'a zona 6','5':'a zona 5','4c':'corto a zona 4','3c':'corto a zona 3','2c':'corto a zona 2',rand:'a una zona al azar',tend:'según la tendencia del sacador'};
+const TEND_NAME={none:'sin tendencia','1':'zona 1','6':'zona 6','5':'zona 5',corto:'saque corto',diag:'diagonal',par:'paralela'};
+// Lectura: cuánto antes del golpe se puede dar el primer paso (solo legal con la regla de prueba), hasta dónde y cuánto acelera la reacción
+const READ={nula:{lead:0,cap:0,rq:0},media:{lead:.2,cap:.5,rq:.05},buena:{lead:.35,cap:.9,rq:.1}};
 let randPick=null;
-function pickRand(){const ks=Object.keys(ZT);const k=ks[Math.floor(Math.random()*ks.length)];randPick={key:k,pt:[ZT[k][0]+rnd(-.6,.6),ZT[k][1]+rnd(-.4,.4)]}}
+// Punto probable del saque según la tendencia y la posición del sacador
+function tendPt(){
+  const t=opt.tend,sx=Math.max(1,Math.min(8,S.srv[0]));
+  if(t==='1'||t==='6'||t==='5')return ZT[t].slice();
+  if(t==='corto')return [Math.max(1.5,Math.min(7.5,9-sx)),12.8];
+  if(t==='diag')return [Math.max(1.2,Math.min(7.8,9-sx)),16.5];
+  if(t==='par')return [Math.max(1.2,Math.min(7.8,sx)),16.5];
+  return null;
+}
+function pickRand(){
+  const tp=tendPt();
+  if(tp&&Math.random()<.6){randPick={key:'tend',pt:[tp[0]+rnd(-.6,.6),Math.max(NET+3.3,tp[1]+rnd(-.4,.4))]};return}
+  const ks=Object.keys(ZT);const k=ks[Math.floor(Math.random()*ks.length)];randPick={key:k,pt:[ZT[k][0]+rnd(-.6,.6),ZT[k][1]+rnd(-.4,.4)]};
+}
 function serveTarget(){
   let key=opt.target,pt=null;
   if(key==='rand'){if(!randPick)pickRand();key=randPick.key;pt=randPick.pt}
-  if(key==='rec'||!ZT[key])return {key:'rec',pt:S.steps[1].ball,recId:null};
+  else if(key==='tend')pt=tendPt()||ZT['6'].slice();
+  if(key==='rec'||(!ZT[key]&&!pt))return {key:'rec',pt:S.steps[1].ball,recId:null};
   pt=pt||ZT[key];
   const A=S.steps[0].P,setter=setterWhoSets(S.system,S.rot,S.libero),lu=lineup(S.system,S.rot,S.libero);
   let cand=lu.filter(p=>p.id!==setter&&A[p.id][1]>=NET+3.5);if(!cand.length)cand=lu.filter(p=>p.id!==setter);
   let best=null,bd=1e9;cand.forEach(p=>{const q=A[p.id],d=Math.hypot(q[0]-pt[0],q[1]-pt[1]);if(d<bd){bd=d;best=p.id}});
   return {key,pt,recId:best};
+}
+// Hacia dónde apunta la lectura: el destino real, o una zona falsa si el saque va disfrazado
+function readPoint(land){
+  if(!opt.fake)return land.slice();
+  if(land[1]<NET+5)return [land[0],16.5];
+  return [land[0]<4.5?Math.min(8,land[0]+5):Math.max(1,land[0]-5),land[1]];
 }
 // Distancia recorrida tau segundos después de arrancar, para un trayecto d (con aceleración y frenada si está activo)
 function distAt(tau,d){
@@ -989,41 +1034,61 @@ function reachIn(tau){if(tau<=0)return 0;if(!opt.accel)return tau*opt.spd;const 
 function simWindow(rule,sv){return rule==='prueba'?sv.a+sv.f:sv.f}
 function availTime(rule,sv){return simWindow(rule,sv)+opt.early-(opt.early>0?0:opt.react)}
 function reachOf(rule,sv){return reachIn(availTime(rule,sv))}
-function simPlan(rule,tg){
-  const sv=opt.st[opt.serve],A=S.steps[0].P,B=S.steps[1].P,total=sv.a+sv.f,land=tg.pt;
+const unit=(a,b)=>{const d=Math.hypot(b[0]-a[0],b[1]-a[1]);return d>1e-6?[(b[0]-a[0])/d,(b[1]-a[1])/d]:[0,0]};
+const dist=(a,b)=>Math.hypot(b[0]-a[0],b[1]-a[1]);
+function simPlan(rule,tg,vr){
+  vr=vr||{};const rx=vr.rx||{};
+  const sv=vr.sv||opt.st[opt.serve],A=S.steps[0].P,B=S.steps[1].P,total=sv.a+sv.f,land=tg.pt;
   // Movimientos preparados (penetración, formación): según la regla, sin necesidad de leer el saque
   const tMove=rule==='prueba'?0:sv.a,start=tMove-opt.early,delay=opt.early>0?0:opt.react;
-  // Receptoras: solo leen la trayectoria después del golpe, más su reacción, con cualquier regla
-  const rStart=sv.a,rDelay=opt.react;
+  // Receptoras: leen al sacador. Con la regla de prueba pueden dar un primer paso antes del golpe; con la clásica solo reaccionan antes
+  const R0=READ[opt.read]||READ.nula,lead=rule==='prueba'?R0.lead:0,readPt=readPoint(land),fooled=!!opt.fake&&R0.lead>0;
+  const reactOf=id=>Math.max(.08,opt.react+(rx[id]||0)+(fooled?R0.rq:-R0.rq)+(fooled&&lead>0?.1:0));
   const lu=lineup(S.system,S.rot,S.libero),setter=setterWhoSets(S.system,S.rot,S.libero);
   const recSet=lu.filter(p=>p.id!==setter&&A[p.id][1]>=NET+3.5).map(p=>p.id);
   let recv=tg.recId;
-  if(!recv){let bd=1.6;recSet.forEach(id=>{const q=A[id],d=Math.hypot(q[0]-land[0],q[1]-land[1]);if(d<bd){bd=d;recv=id}})}
+  if(land[1]<NET+3){const fr=lu.filter(p=>p.zone>=2&&p.zone<=4&&p.id!==setter);
+    recv=(fr.find(p=>p.id.startsWith('MB'))||fr.find(p=>p.id==='OPP'||p.id==='S2')||fr[0]||{}).id||recv}
+  else if(!recv){let bd=1.6;recSet.forEach(id=>{const q=A[id],d=dist(q,land);if(d<bd){bd=d;recv=id}})}
   const movers=[];
+  // Movimiento en dos fases: primer paso por lectura (antes del golpe) y desplazamiento al balón tras reaccionar
+  const twoPhase=(id,a,cap1,cap2fn,extra)=>{
+    const t1=sv.a-lead,u1=unit(a,readPt),c1=Math.max(0,cap1);
+    const t2=sv.a+reactOf(id),pp=[a[0]+u1[0]*distAt(t2-t1,c1),a[1]+u1[1]*distAt(t2-t1,c1)];
+    const c2=Math.max(0,cap2fn(pp));
+    return Object.assign({id,a,read:true,t1,u1,cap1:c1,t2,pp,u2:unit(pp,land),cap2:c2,R:reachIn(total-t2)},extra);
+  };
   lu.forEach(p=>{const a=A[p.id];
-    if(p.id===recv){const d=Math.hypot(land[0]-a[0],land[1]-a[1]),need=Math.max(0,d-.8);
-      movers.push({id:p.id,a,b:land,d,need,rec:true,read:true,start:rStart,delay:rDelay,u:d>1e-6?[(land[0]-a[0])/d,(land[1]-a[1])/d]:[0,0]});return}
-    const b=B[p.id],d=Math.hypot(b[0]-a[0],b[1]-a[1]);
-    if(d>.3){movers.push({id:p.id,a,b,d,need:d,start,delay,u:[(b[0]-a[0])/d,(b[1]-a[1])/d]});return}
-    if(recSet.includes(p.id)){const dl=Math.hypot(land[0]-a[0],land[1]-a[1]),st=Math.min(.7,dl-1.0);
-      if(st>.15){const u=[(land[0]-a[0])/dl,(land[1]-a[1])/dl];movers.push({id:p.id,a,b:[a[0]+u[0]*st,a[1]+u[1]*st],d:st,need:st,step:true,read:true,start:rStart,delay:rDelay,u})}}
+    if(p.id===recv){
+      const m=twoPhase(p.id,a,lead>0?Math.min(R0.cap,dist(a,readPt)-.8):0,pp=>dist(pp,land)-.8,{rec:true,b:land});
+      m.need=Math.max(0,dist(a,land)-.8);m.needEff=m.cap2;m.miss=Math.max(0,m.cap2-m.R);m.ok=m.miss<.05;movers.push(m);return}
+    const b=B[p.id],d=dist(a,b);
+    if(d>.3){const t1=start+delay,R=reachIn(total-t1);movers.push({id:p.id,a,b,need:d,needEff:d,t1,u1:unit(a,b),cap1:d,t2:Infinity,R,miss:Math.max(0,d-R),ok:d-R<.05,start});return}
+    if(recSet.includes(p.id)){
+      const m=twoPhase(p.id,a,lead>0?Math.min(.4,dist(a,readPt)-1):0,pp=>Math.min(.6,dist(pp,land)-1),{step:true,ok:true,miss:0});
+      if(m.cap1+m.cap2>.15){m.b=land;m.need=m.cap1+m.cap2;movers.push(m)}}
   });
-  movers.forEach(m=>{m.R=reachIn(total-m.start-m.delay);m.ok=m.step||m.R>=m.need-1e-6});
-  return {rule,sv,tg,tMove,start,delay,rStart,rDelay,total,movers,recSet,early:opt.early>0,R:reachIn(total-start-delay),Rr:reachIn(total-rStart-rDelay)};
+  const rStart=lead>0?sv.a-lead:sv.a+Math.max(.08,opt.react-(fooled?-R0.rq:R0.rq));
+  return {rule,sv,tg,land,readPt,lead,fooled,start,delay,total,movers,recSet,rStart,early:opt.early>0,R:reachIn(total-start-delay)};
+}
+function moverPos(m,tc){
+  if(tc<m.t2){const s=distAt(tc-m.t1,m.cap1);return [m.a[0]+m.u1[0]*s,m.a[1]+m.u1[1]*s]}
+  const s=distAt(tc-m.t2,m.cap2);return [m.pp[0]+m.u2[0]*s,m.pp[1]+m.u2[1]*s];
 }
 function simFrame(pl,t,cx){
   const tc=Math.min(t,pl.total),A=S.steps[0].P;
   const P={};for(const id in A)P[id]=A[id].slice();
-  pl.movers.forEach(m=>{const s=distAt(tc-m.start-m.delay,m.need);P[m.id]=[m.a[0]+m.u[0]*s,m.a[1]+m.u[1]*s]});
+  pl.movers.forEach(m=>{P[m.id]=moverPos(m,tc)});
   const sv=pl.sv,ga=Math.max(0,Math.min(1,sv.a>0?tc/sv.a:1)),srv=[cx.s0[0],cx.s0[1]+(cx.s1[1]-cx.s0[1])*ease(ga)];
   let ball,bs;
   if(tc<sv.a){ball=[srv[0]+.3,srv[1]+.15];bs=tc<0?1:1+.9*Math.sin(Math.PI*Math.min(1,tc/sv.a))}
-  else{const u=Math.min(1,(tc-sv.a)/sv.f);ball=quad(cx.hit,cx.cc,pl.tg.pt,u);bs=1+(cx.serve==='power'?.25:.45)*Math.sin(Math.PI*u)}
+  else{const u=Math.min(1,(tc-sv.a)/sv.f);ball=quad(cx.hit,cx.cc,pl.land,u);bs=1+(cx.serve==='power'?.25:.45)*Math.sin(Math.PI*u)}
   const planned=pl.movers.filter(m=>!m.read),circles=[];
-  planned.forEach(m=>circles.push({c:m.a,r:reachIn(tc-m.start-m.delay),cls:'reach'}));
-  const rr=reachIn(tc-pl.rStart-pl.rDelay);
+  planned.forEach(m=>circles.push({c:m.a,r:reachIn(tc-m.t1),cls:'reach'}));
+  const rr=reachIn(tc-pl.rStart);
   pl.recSet.forEach(id=>{if(!planned.some(m=>m.id===id))circles.push({c:A[id],r:rr,cls:'reachr'})});
-  return {P,ball,bs,srv,opp:S.opp,sim:{movers:pl.movers,circles,done:t>=pl.total,fault:pl.early&&tc>=pl.start&&planned.length>0,pl}};
+  const showRead=opt.read!=='nula'&&tc>=0;
+  return {P,ball,bs,srv,opp:S.opp,sim:{movers:pl.movers,circles,done:t>=pl.total,fault:pl.early&&tc>=pl.start&&planned.length>0,pl,readPt:showRead?pl.readPt:null,fooledShown:pl.fooled&&tc>=sv.a}};
 }
 function simMsg(t,bad){const m=$('#simmsg');m.textContent=t||'';m.hidden=!t;m.classList.toggle('bad',!!bad)}
 function renderSim(){
@@ -1034,40 +1099,47 @@ function renderSim(){
   $('#targetSel').value=opt.target;$('#cmpTog').checked=!!opt.compare;
   $('#bDrill').textContent=drill?'Parar ejercicio':'Ejercicio aleatorio';
   $('#optOpp').checked=!!opt.showOpp;$('#optArms').checked=!!opt.arms;$('#optArms').disabled=!opt.showOpp;
+  $('#tendSel').value=opt.tend;$('#bShift').disabled=opt.tend==='none';$('#optFake').checked=!!opt.fake;$('#optVary').checked=!!opt.vary;
+  document.querySelectorAll('#readSeg .btn').forEach(b=>b.classList.toggle('on',b.dataset.rd===opt.read));
   document.querySelectorAll('#examKind .btn').forEach(b=>b.classList.toggle('on',b.dataset.ek===opt.examKind));
   const W=.6,tot=W+sv.a+sv.f,pc=x=>Math.max(0,x)/tot*100;
-  const allowed=opt.rule==='prueba'?W:W+sv.a,start=allowed-opt.early,win=availTime(opt.rule,sv)+(opt.early>0?0:opt.react);
-  $('#tl').innerHTML=`<div class="track"><div class="seg-w" style="width:${pc(W)}%">Silbato</div><div class="seg-a" style="width:${pc(sv.a)}%">Acción ${fmt(sv.a)} s</div><div class="seg-f" style="width:${pc(sv.f)}%">Vuelo ${fmt(sv.f)} s</div></div><div class="cur" id="tlCur"></div><div class="win">${opt.early>0?`<div class="early" style="left:${pc(start)}%;width:${pc(opt.early)}%">falta</div>`:''}<div style="left:${pc(allowed)}%;width:${pc(tot-allowed)}%">Movimientos preparados ${fmt(tot-allowed)} s · alcance ${fmt(reachOf(opt.rule,sv))} m</div></div><div class="win win2"><div style="left:${pc(W+sv.a+opt.react)}%;width:${pc(Math.max(0,sv.f-opt.react))}%">Receptora ${fmt(Math.max(0,sv.f-opt.react))} s</div></div>`;
+  const allowed=opt.rule==='prueba'?W:W+sv.a,start=allowed-opt.early;
+  const R0=READ[opt.read]||READ.nula,lead=opt.rule==='prueba'?R0.lead:0;
+  const rs=lead>0?sv.a-lead:sv.a+Math.max(.08,opt.react-R0.rq),rw=sv.a+sv.f-rs;
+  $('#tl').innerHTML=`<div class="track"><div class="seg-w" style="width:${pc(W)}%">Silbato</div><div class="seg-a" style="width:${pc(sv.a)}%">Acción ${fmt(sv.a)} s</div><div class="seg-f" style="width:${pc(sv.f)}%">Vuelo ${fmt(sv.f)} s</div></div><div class="cur" id="tlCur"></div><div class="win">${opt.early>0?`<div class="early" style="left:${pc(start)}%;width:${pc(opt.early)}%">falta</div>`:''}<div style="left:${pc(allowed)}%;width:${pc(tot-allowed)}%">Movimientos preparados ${fmt(tot-allowed)} s · alcance ${fmt(reachOf(opt.rule,sv))} m</div></div><div class="win win2"><div style="left:${pc(W+rs)}%;width:${pc(rw)}%">Receptora ${fmt(rw)} s${lead>0?' (lee antes del golpe)':''}</div></div>`;
   const box=$('#simres');
   if(S.steps.length<2){box.innerHTML='<p>Añade un paso 2 para simular el saque.</p>';return}
   const tg=serveTarget(),pc_=simPlan('clasica',tg),pp=simPlan('prueba',tg);
   const tgName=opt.target==='rand'&&randPick?`${ZT_NAME[randPick.key]} (al azar)`:ZT_NAME[tg.key];
   const tab=pp.movers.filter(m=>!m.step);
   if(!tab.length){box.innerHTML=`<h3>${SV_NAME[opt.serve]} ${tgName}</h3><p>Mueve fichas en el paso 2 de la salida o elige una zona de destino para ver si a cada jugadora le da tiempo a llegar.</p>`;return}
-  const cell=m=>m.ok?`<span class="y">Llega</span>`:`<span class="n">Faltan ${fmt(m.need-(m.rule==='clasica'?pc_.R:pp.R))} m</span>`;
+  const cell=m=>m.ok?'<span class="y">Llega</span>':`<span class="n">Faltan ${fmt(m.miss)} m</span>`;
   const rows=tab.map(m=>{const mc=pc_.movers.find(x=>x.id===m.id);return {m,mc}}).sort((x,y)=>(y.m.rec?1:0)-(x.m.rec?1:0)||y.m.need-x.m.need);
-  box.innerHTML=`<h3>${SV_NAME[opt.serve]} ${tgName} · ¿llegan antes de recibir?</h3><table><thead><tr><th>Jugadora</th><th>Recorrido</th><th>Clásica</th><th>Prueba FIVB</th></tr></thead><tbody>${rows.map(({m,mc})=>`<tr><td>${esc(chipName(m.id))}${m.rec?' · recibe':''}</td><td>${fmt(m.need)} m</td><td>${mc.ok?'<span class="y">Llega</span>':`<span class="n">Faltan ${fmt(mc.need-mc.R)} m</span>`}</td><td>${m.ok?'<span class="y">Llega</span>':`<span class="n">Faltan ${fmt(m.need-m.R)} m</span>`}</td></tr>`).join('')}</tbody></table>${opt.early>0?`<p class="warn">Con salida anticipada de ${fmt(opt.early)} s llegan antes, pero es falta de posición con las dos reglas.</p>`:''}<p class="note">La receptora solo arranca tras el golpe y su reacción (${fmt(opt.react)} s), con las dos reglas: tiene ${fmt(Math.max(0,pp.sv.f-opt.react))} s para colocarse. Las demás receptoras dan un paso hacia el bote. Los movimientos preparados, como la penetración, dependen de la regla.</p><p class="note">${opt.accel?`Movimiento con aceleración (${fmt(opt.acc)} m/s²) y frenada`:'Movimiento a velocidad constante'}, reacción ${fmt(opt.react)} s, velocidad ${fmt(opt.spd)} m/s.</p>`;
+  const readTxt=opt.read==='nula'?'Sin lectura: la receptora solo reacciona tras el golpe, con las dos reglas.':`Lectura ${opt.read}: con la regla de prueba la receptora da un primer paso ${fmt(R0.lead)} s antes del golpe (hasta ${fmt(R0.cap)} m). Con la clásica ese paso sería falta, así que la lectura solo le ahorra ${fmt(R0.rq)} s de reacción.`;
+  box.innerHTML=`<h3>${SV_NAME[opt.serve]} ${tgName} · ¿llegan antes de recibir?</h3><table><thead><tr><th>Jugadora</th><th>Recorrido</th><th>Clásica</th><th>Prueba FIVB</th></tr></thead><tbody>${rows.map(({m,mc})=>`<tr><td>${esc(chipName(m.id))}${m.rec?' · recibe':''}</td><td>${fmt(m.need)} m</td><td>${cell(mc)}</td><td>${cell(m)}</td></tr>`).join('')}</tbody></table>${opt.fake&&opt.read!=='nula'?`<p class="warn">Saque disfrazado: la lectura apunta a otra zona y la receptora pierde tiempo corrigiendo, sobre todo si se ha anticipado.</p>`:''}${opt.early>0?`<p class="warn">Con salida anticipada de ${fmt(opt.early)} s los movimientos preparados llegan antes, pero es falta de posición con las dos reglas.</p>`:''}<p class="note">${readTxt}${opt.tend!=='none'?` Tendencia del sacador: ${TEND_NAME[opt.tend]}.`:''}</p><p class="note">${opt.accel?`Movimiento con aceleración (${fmt(opt.acc)} m/s²) y frenada`:'Movimiento a velocidad constante'}, reacción ${fmt(opt.react)} s, velocidad ${fmt(opt.spd)} m/s. La tabla usa los valores medios${opt.vary?'; cada simulación varía un poco':''}.</p>`;
 }
 function simRun(onDone){
   if(exam&&exam.kind!=='tiempo')return;if(S.steps.length<2)return;
   stopAnim();S.cur=0;if(opt.target==='rand')pickRand();renderAll();simMsg('');
-  const tg=serveTarget(),serve=opt.serve,sv=opt.st[serve],W=.6,cmp=!!opt.compare&&!exam;
-  const p1=simPlan(cmp?'clasica':opt.rule,tg),p2=cmp?simPlan('prueba',tg):null;
-  const A=S.steps[0].P,setter=setterWhoSets(S.system,S.rot,S.libero);
-  const circleIds=lineup(S.system,S.rot,S.libero).filter(p=>p.id!==setter&&A[p.id][1]>=NET+3.5).map(p=>p.id);
-  p1.movers.forEach(m=>{if(!circleIds.includes(m.id))circleIds.push(m.id)});
-  const s0=S.srv.slice(),s1=[s0[0],s0[1]+(serve==='float'?0:.9)],hit=[s1[0]+.3,s1[1]+.15],tgt=tg.pt;
+  const serve=opt.serve,W=.6,cmp=!!opt.compare&&!exam;
+  let tg=serveTarget();const vr={};
+  if(opt.vary&&!exam){const b=opt.st[serve];vr.sv={a:b.a*(1+rnd(-.08,.08)),f:b.f*(1+rnd(-.1,.1))};
+    tg=Object.assign({},tg,{pt:[Math.max(.3,Math.min(8.7,tg.pt[0]+rnd(-.3,.3))),Math.max(NET+3.2,Math.min(17.7,tg.pt[1]+rnd(-.3,.3)))]});
+    vr.rx={};lineup(S.system,S.rot,S.libero).forEach(p=>vr.rx[p.id]=rnd(-.05,.05))}
+  const p1=simPlan(cmp?'clasica':opt.rule,tg,vr),p2=cmp?simPlan('prueba',tg,vr):null,sv=p1.sv;
+  const s0=S.srv.slice(),s1=[s0[0],s0[1]+(serve==='float'?0:.9)],hit=[s1[0]+.3,s1[1]+.15],tgt=p1.land;
   const k=serve==='power'?.07:.14,mx=(hit[0]+tgt[0])/2,my=(hit[1]+tgt[1])/2,dx=tgt[0]-hit[0],dy=tgt[1]-hit[1],L=Math.hypot(dx,dy)||1;
-  const cx={s0,s1,hit,cc:[mx-dy/L*k*L,my+dx/L*k*L],serve,circleIds};
-  const tgName=ZT_NAME[tg.key];const pre=drill?`Saque ${drill.n} · `:'';
+  const cx={s0,s1,hit,cc:[mx-dy/L*k*L,my+dx/L*k*L],serve};
+  const tgName=ZT_NAME[tg.key];const pre=drill?`Saque ${drill.n} · `:'';const lead=(cmp?p2:p1).lead;
   let faultShown=false;const t0=performance.now();anim={};
   const fr=now=>{
     const t=((now-t0)/1000)*opt.speed-W,tc=Math.min(t,p1.total);
     anim.frame=simFrame(p1,t,cx);if(p2)anim.frame2=simFrame(p2,t,cx);
     const fault=anim.frame.sim.fault||(anim.frame2&&anim.frame2.sim.fault);
     if(fault&&!faultShown){faultShown=true;if(!exam)buzz();simMsg(cmp?'Falta de posición: se mueven antes de lo permitido (en la clásica antes del golpe, en la de prueba antes de que el sacador inicie la acción).':`Falta de posición: se mueven ${opt.rule==='prueba'?'antes de que el sacador inicie la acción':'antes del golpe de saque'}.`,true)}
-    const done=t>=p1.total,late=p1.movers.filter(m=>!m.ok).length;
-    $('#cap').textContent=pre+(t<0?`Silbato · ${SV_NAME[serve]} ${tgName}`:tc<sv.a?`Acción del sacador · golpe en ${fmt(sv.a-tc)} s${!cmp&&opt.rule==='clasica'&&opt.early===0?' · aún sin moverse':''}`:!done?`Balón en el aire · llega en ${fmt(p1.total-tc)} s`:cmp?'Recepción · izquierda clásica, derecha prueba FIVB':`Recepción · ${late===0?'todas llegan':late===1?'1 no llega':late+' no llegan'}`);
+    const done=t>=p1.total,late=(cmp?p2:p1).movers.filter(m=>!m.ok).length;
+    const reading=lead>0&&tc>=sv.a-lead&&tc<sv.a;
+    $('#cap').textContent=pre+(t<0?`Silbato · ${SV_NAME[serve]} ${tgName}`:tc<sv.a?`Acción del sacador · golpe en ${fmt(sv.a-tc)} s${reading?(cmp?' · con la regla de prueba ya dan el primer paso':' · las receptoras leen y dan el primer paso'):''}`:!done?`Balón en el aire · llega en ${fmt(p1.total-tc)} s${p1.fooled?' · ¡saque disfrazado!':''}`:cmp?'Recepción · izquierda clásica, derecha prueba FIVB':`Recepción · ${late===0?'todas llegan':late===1?'1 no llega':late+' no llegan'}`);
     const cur=$('#tlCur');if(cur){cur.style.display='block';cur.style.left=`${Math.max(0,Math.min(100,(t+W)/(W+p1.total)*100))}%`}
     drawCourt();
     if(!done){anim.raf=requestAnimationFrame(fr)}
@@ -1076,6 +1148,21 @@ function simRun(onDone){
       if(onDone)onDone(p1,p2)}
   };
   anim.raf=requestAnimationFrame(fr);
+}
+// Reajuste previo: desplaza a las receptoras hacia la zona probable sin romper el orden de rotación
+function shiftReception(){
+  const tp=tendPt();if(!tp||exam)return;stopAnim();
+  const A=S.steps[0].P,setter=setterWhoSets(S.system,S.rot,S.libero);
+  const ids=lineup(S.system,S.rot,S.libero).filter(p=>p.id!==setter&&A[p.id][1]>=NET+3.5).map(p=>p.id);if(!ids.length)return;
+  const cxm=ids.reduce((s,id)=>s+A[id][0],0)/ids.length,cym=ids.reduce((s,id)=>s+A[id][1],0)/ids.length;
+  const dx=Math.max(-.8,Math.min(.8,(tp[0]-cxm)*.3)),dy=Math.max(-.5,Math.min(.5,(tp[1]-cym)*.2));
+  let best=0;for(let k=10;k>=1;k--){const Q=cp(A);ids.forEach(id=>{Q[id]=[A[id][0]+dx*k/10,A[id][1]+dy*k/10]});if(!checkFaults(Q).length){best=k/10;break}}
+  if(!best){simMsg('No se puede desplazar la recepción hacia esa zona sin cometer falta de posición.',true);return}
+  pushUndo();
+  ids.forEach(id=>{const old=A[id].slice(),nw=[f(old[0]+dx*best),f(old[1]+dy*best)];
+    for(let j=0;j<S.steps.length;j++){const q=S.steps[j].P[id];if(j===0||(q&&Math.abs(q[0]-old[0])<.01&&Math.abs(q[1]-old[1])<.01))S.steps[j].P[id]=nw.slice();else break}});
+  S.dirty=true;resyncKeys();renderAll();autosave();
+  simMsg(`Recepción desplazada ${Math.round(Math.hypot(dx,dy)*best*100)} cm hacia ${TEND_NAME[opt.tend]}, sin falta de posición. Puedes deshacerlo con ↶.`);
 }
 
 /* Ejercicio aleatorio: saques seguidos con tipo y zona al azar */
@@ -1211,7 +1298,7 @@ function examNext(){
     opt.serve=Object.keys(DEF_ST)[Math.floor(Math.random()*3)];opt.rule=Math.random()<.5?'prueba':'clasica';opt.target='rec';opt.early=0;opt.compare=false;
     const pl=simPlan(opt.rule,serveTarget()),setter=setterWhoSets(S.system,k,S.libero);
     const cand=pl.movers.filter(x=>!x.step);const m=cand.find(x=>x.id===setter)||cand[Math.floor(Math.random()*cand.length)];
-    if(m){exam.q={id:m.id,ok:m.ok,need:m.need,R:m.R};exam.fault=false;renderAll();return}
+    if(m){exam.q={id:m.id,ok:m.ok,need:m.needEff!=null?m.needEff:m.need,R:m.R};exam.fault=false;renderAll();return}
     exam.kind='pos';
   }
   const setP=P=>setSteps([{label:'Examen',P,ball:null,draw:[]}]);
@@ -1369,6 +1456,11 @@ function setRule(r){stopDrill();stopAnim();opt.rule=r;resyncKeys();renderAll();a
 $('#ruleSeg').addEventListener('click',e=>{const b=e.target.closest('[data-rule]');if(b)setRule(b.dataset.rule)});
 $('#ruleSeg2').addEventListener('click',e=>{const b=e.target.closest('[data-rule]');if(b)setRule(b.dataset.rule)});
 $('#bSim').onclick=()=>{stopDrill();simRun()};
+$('#tendSel').onchange=e=>{stopDrill();stopAnim();opt.tend=e.target.value;randPick=null;renderAll();autosave()};
+$('#bShift').onclick=shiftReception;
+$('#readSeg').addEventListener('click',e=>{const b=e.target.closest('[data-rd]');if(!b)return;stopAnim();opt.read=b.dataset.rd;renderAll();autosave()});
+$('#optFake').onchange=e=>{stopAnim();opt.fake=e.target.checked;renderAll();autosave()};
+$('#optVary').onchange=e=>{opt.vary=e.target.checked;renderSim();autosave()};
 $('#bDrill').onclick=()=>{drill?stopDrill():startDrill();renderSim()};
 $('#bRec').onclick=recordVideo;
 $('#targetSel').onchange=e=>{stopDrill();stopAnim();opt.target=e.target.value;randPick=null;renderAll();autosave()};
